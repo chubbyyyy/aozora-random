@@ -6,17 +6,21 @@
   <title>青空文庫ランダム</title>
 </head>
 <body>
-  <p id="status">あなたの一冊を選んでいます……</p>
+  <p id="status">作品を選んでいます……</p>
 
   <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
   <script>
     async function randomBook() {
+      const status = document.getElementById("status");
+
       try {
         const response = await fetch(
           "https://raw.githubusercontent.com/aozorabunko/aozorabunko/master/soramoyou/list_person_all_extended_utf8.zip"
         );
 
-        if (!response.ok) throw new Error();
+        if (!response.ok) {
+          throw new Error("HTTP " + response.status);
+        }
 
         const zip = await JSZip.loadAsync(
           await response.arrayBuffer()
@@ -26,22 +30,30 @@
           f => !f.dir && f.name.endsWith(".csv")
         );
 
+        if (!file) {
+          throw new Error("CSVが見つかりません");
+        }
+
         const csv = await file.async("string");
 
-        const urls = [...new Set(
-          csv.match(/https?:\/\/www\.aozora\.gr\.jp\/cards\/\d+\/card\d+\.html/g)
-        )];
+        const matches = csv.match(
+          /https?:\/\/(?:www\.)?aozora\.gr\.jp\/cards\/\d+\/card\d+\.html/gi
+        ) || [];
 
-        if (!urls.length) throw new Error();
+        const urls = [...new Set(matches.map(
+          url => url.replace(/^http:/, "https:")
+        ))];
 
-        const random = Math.floor(
-          Math.random() * urls.length
+        if (!urls.length) {
+          throw new Error("作品URLが見つかりません");
+        }
+
+        location.replace(
+          urls[Math.floor(Math.random() * urls.length)]
         );
 
-        location.replace(urls[random]);
       } catch (error) {
-        document.getElementById("status").textContent =
-          "作品を取得できませんでした。再読み込みしてください。";
+        status.textContent = "エラー：" + error.message;
       }
     }
 
